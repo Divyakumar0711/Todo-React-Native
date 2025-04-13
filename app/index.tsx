@@ -7,11 +7,17 @@ import {
   TouchableOpacity,
   TextInput,
   KeyboardAvoidingView,
+  Keyboard,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Checkbox from "expo-checkbox";
-
+import AsyncStorage from "@react-native-async-storage/async-storage";
+type ToDoType = {
+  id: number;
+  title: string;
+  isDone: boolean;
+};
 export default function Index() {
   const todoData = [
     {
@@ -51,7 +57,41 @@ export default function Index() {
     },
   ];
 
+  const [todos, setToDos] = useState<ToDoType[]>([]);
+  const [todoText, setTodoText] = useState<string>("");
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    const getTodo = async () => {
+      try {
+        const todos = await AsyncStorage.getItem("my-todo");
+        if (todos != null) {
+          setToDos(JSON.parse(todos));
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    getTodo();
+  }),
+    [];
+  const addTodo = async () => {
+    try {
+      const newTodo = {
+        id: Math.random(),
+        title: todoText,
+        isDone: false,
+      };
+
+      todos.push(newTodo);
+      setToDos(todos);
+      await AsyncStorage.setItem("my-todo", JSON.stringify(todos));
+      setTodoText("");
+      Keyboard.dismiss();
+    } catch (error) {
+      console.log(error);
+    }
+  };
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -74,40 +114,50 @@ export default function Index() {
         />
       </View>
       <FlatList
-        data={todoData}
+        data={[...todos].reverse()}
         keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <View style={styles.todoContainer}>
-            <View style={styles.todoInfoContainer}>
-              <Checkbox value={item.isDone} />
-              <Text
-                style={
-                  (styles.todoText,
-                  item.isDone && { textDecorationLine: "line-through" })
-                }
-              >
-                {item.title}
-              </Text>
-            </View>
-
-            <TouchableOpacity onPress={() => alert("Deleted " + item.id)}>
-              <Ionicons name="trash" size={24} />
-            </TouchableOpacity>
-          </View>
-        )}
+        renderItem={({ item }) => <ToDoItem todo={item} />}
       />
 
-      <KeyboardAvoidingView style={styles.footer} behavior="padding" keyboardVerticalOffset={10
-        
-      }>
-        <TextInput placeholder="Add Todo" style={styles.newToDoInput} />
-        <TouchableOpacity style={styles.addButton} onPress={() => {}}>
+      <KeyboardAvoidingView
+        style={styles.footer}
+        behavior="padding"
+        keyboardVerticalOffset={10}
+      >
+        <TextInput
+          placeholder="Add Todo"
+          style={styles.newToDoInput}
+          value={todoText}
+          onChangeText={(text) => setTodoText(text)}
+          autoCorrect={false}
+        />
+        <TouchableOpacity style={styles.addButton} onPress={() => addTodo()}>
           <Ionicons name="add" size={34} color={"#fff"} />
         </TouchableOpacity>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
+
+const ToDoItem = ({ todo }: { todo: ToDoType }) => (
+  <View style={styles.todoContainer}>
+    <View style={styles.todoInfoContainer}>
+      <Checkbox value={todo.isDone} color={todo.isDone ? "blue" : undefined} />
+      <Text
+        style={
+          (styles.todoText,
+          todo.isDone && { textDecorationLine: "line-through" })
+        }
+      >
+        {todo.title}
+      </Text>
+    </View>
+
+    <TouchableOpacity onPress={() => alert("Deleted " + todo.id)}>
+      <Ionicons name="trash" size={24} />
+    </TouchableOpacity>
+  </View>
+);
 
 const styles = StyleSheet.create({
   container: {
